@@ -11,7 +11,7 @@ Assuming you have a working Python 3.12+ installation, you can get started with 
 1. Clone this repository to your device
 2. Install Python dependencies using ```pip install -r requirements.txt``` within the project root
 3. Set up free [Map Box](https://www.mapbox.com/) account and save API key in """keys.env""" as """MAPBOX_ACCESS_TOKEN=[INSERT TOKEN]""". This is required to get satellite data.
-3. Run one of the provided sample scripts, [l4c.py](l4c.py), [lpr.py](lpr.py), [lymm_weather_analysis.py](lymm_weather_analysis.py), [test_mpr.py](test_mpr.py), [ukroc.py](ukroc.py)
+4. Run one of the provided sample scripts, [l4c.py](l4c.py), [lpr.py](lpr.py), [lymm_weather_analysis.py](lymm_weather_analysis.py), [test_mpr.py](test_mpr.py), [ukroc.py](ukroc.py)
 
 ## Sample Outputs
 
@@ -63,15 +63,11 @@ This script contains example usage at the end.
 
 ### Drag Coefficient Estimation
 
-To avoid having to measure drag coefficients in a wind tunnel. The method described in [appendix A](docs/) can be used to approximate the performance using the RAS Aero II program based on existing aerodynamic data. [extract_drag_curves.py](extract_drag_curves.py) can then be used to extract the useful data from this program.
-
-<!-- TODO Link to pdf -->
+To avoid having to measure drag coefficients in a wind tunnel. The method described in [appendix A](docs/estimation-methods.pdf) can be used to approximate the performance using the RAS Aero II program based on existing aerodynamic data. [extract_drag_curves.py](extract_drag_curves.py) can then be used to extract the useful data from this program.
 
 ### Inertia Estimation
 
-If the moments of inertia for your rocket are unknown, they can be approximated using the method described in [appendix B](docs/) in OpenRocket, assuming equal moments of inertia along the lines of symmetry.
-
-<!-- TODO Link to pdf -->
+If the moments of inertia for your rocket are unknown, they can be approximated using the method described in [appendix B](docs/estimation-methods.pdf) in OpenRocket, assuming equal moments of inertia along the lines of symmetry.
 
 ## Documentation
 
