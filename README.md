@@ -1,9 +1,8 @@
 # Sub-Orbital Rocket Dispersion Analysis
 
-This project attempts to model all uncertainty in sub-orbital rocketry launches typical of student and amateur rocket teams to predict dispersion analysis, failure cases, design sensitivity and help to develop and support the safety case for launches.
+This project aims to model all uncertainty in sub-orbital rocketry launches typical of student and amateur rocket teams to predict dispersion, failure cases, and design sensitivity, and to help develop and support the safety case for launches.
 
-This project is built apon the excellent,
-[RocketPy](https://rocketpy-team.github.io) project and extends the existing monte carlo model to quickly analyse unknown uncertainty with standard variance, custom variance, probability based failure modes and their modelling and tools and methods to make it easier to estimate or calculate the parameters needed for modelling rockets.
+This project builds on the excellent [RocketPy](https://rocketpy-team.github.io) project and extends the existing Monte Carlo model to quickly analyse unknown uncertainty using standard variance, defined variance, probability-based failure modes, and tools and methods to make it easier to estimate or calculate the parameters needed for rocket modelling.
 
 ## Getting Started
 
