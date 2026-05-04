@@ -57,9 +57,9 @@ This script contains example usage at the end.
 
 ### Cache Reader
 
-[cache_reader.py](cache_reader.py) can be used to cache saved dispersion analysis data for further analysis. Recommended for long-running/computationally expensive simulations.
+[cache_reader.py](cache_reader.py) can be used to read cached dispersion analysis data for further analysis. Recommended for long-running/computationally expensive simulations.
 
-> Cache can be saved with ```SimOutput.save("cache-name.cache")```
+> Data can be cached as,  ```SimOutput.save("cache-name.cache")```
 
 ### Drag Coefficient Estimation
 
