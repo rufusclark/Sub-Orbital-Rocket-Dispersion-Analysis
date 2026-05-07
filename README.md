@@ -10,7 +10,7 @@ Assuming you have a working Python 3.12+ installation, you can get started with 
 
 1. Clone this repository to your device
 2. Install Python dependencies using ```pip install -r requirements.txt``` within the project root
-3. Set up free [Map Box](https://www.mapbox.com/) account and save API key in """keys.env""" as """MAPBOX_ACCESS_TOKEN=[INSERT TOKEN]""". This is required to get satellite data.
+3. Set up free [Map Box](https://www.mapbox.com/) account and save API key in ```keys.env``` as ```MAPBOX_ACCESS_TOKEN=[INSERT TOKEN]```. This is required to get satellite data.
 4. Run one of the provided sample scripts, [l4c.py](l4c.py), [lpr.py](lpr.py), [lymm_weather_analysis.py](lymm_weather_analysis.py), [test_mpr.py](test_mpr.py), [ukroc.py](ukroc.py)
 
 ## Sample Outputs
