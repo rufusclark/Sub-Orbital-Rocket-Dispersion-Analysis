@@ -350,3 +350,43 @@ if __name__ == "__main__":
 
     # wind speed profile
     env.plots.average_wind_speed_profile()
+
+    quit()
+
+    mrc = EnvironmentalAnalysisManager(
+        name="mrc",
+        latitude=52.669368807300984,
+        longitude=-1.5236957546301024,
+        years=list(range(2025, 2026)),
+        months=[11],
+        days=[9],
+        hours=[13, 14],
+        max_altitude=200,
+    )
+
+    mrc.download_levels_data()
+    mrc.download_surface_data()
+
+    # lymm.print_variables("reanalysis-era5-pressure-levels")
+    # lymm.print_variables("reanalysis-era5-single-levels")
+
+    env = mrc.EnvironmentalAnalysis()
+
+    # print info
+    env.prints.all()
+
+    # temperature plots
+    env.plots.average_surface_temperature_evolution()
+
+    # wind plots speed
+    env.plots.average_surface100m_wind_speed_evolution()
+    env.plots.wind_gust_distribution()
+
+    # wind direction
+    env.plots.average_wind_heading_profile()
+
+    # wind rose
+    env.plots.average_wind_rose_grid()  # ! plots 14:00, 15:00, 16:00
+
+    # wind speed profile
+    env.plots.average_wind_speed_profile()

@@ -1,23 +1,29 @@
-from monte_carlo_manager import FlightManager, FlightCls, EnvironmentCls, MotorCls, RocketCls, ParachuteCls, NoseCls, FinSetCls, RailButtonCls, In, normal, normal_fraction, uniform, MPH_TO_MS, SimOutput, TailCls, TransitionCls
+from monte_carlo_manager import FlightManager, FlightCls, EnvironmentCls, MotorCls, RocketCls, ParachuteCls, NoseCls, FinSetCls, RailButtonCls, In, normal, normal_fraction, uniform, MPH_TO_MS, SimOutput, TailCls, TransitionCls, delay_distribution
 
 cots_error = normal_fraction(0.01)
 design_and_manufacturing_error = normal_fraction(0.025)
 
 fm = FlightManager(
     flight=FlightCls(
-        rail_length=In(2),
-        inclination=In(85, normal(5)),
+        rail_length=In(1.8, normal(0.1)),
+        inclination=In(85, normal(4)),
         heading=In(60, normal(10))
     ),
     env=EnvironmentCls(
         latitude=In(52.6692265),
         longitude=In(-1.5233585),
         elevation=In(105),
+        # ! reanalysis with profile
         # reanalysis_filename="./data/rockets/mpr/mrc-9-11-2025.nc",
         # date=(2025, 11, 9, 13),
-        wind_speed=In(4.5, normal(1.5)),  # from ERA5 (MRC 2025-11-9 13:00)
-        wind_heading=In(176+180, normal(10))  # from ERA5 (MRC 2025-11-9 13:00)
+        # ! experimentally determined
+        wind_speed=In(5.19, normal(1.5)),
+        wind_heading=In((484.30 + 180) % 360, normal(10))
+        # ! reanalysis (averaged)
+        # wind_speed=In(6.96, normal(1.5)),
+        # wind_heading=In((184.14 + 180) % 360, normal(10))
     ),
+    # F31-6A
     motor=MotorCls(
         thrust_source="./data/motors/cesaroni/Cesaroni_56F31-12A.eng",
         diameter=In(29 / 1000, cots_error),
@@ -29,7 +35,7 @@ fm = FlightManager(
         scaled_total_impulse=In(55.5, cots_error),
         position=In(659 / 1000, cots_error),
         grain_number=1,
-        thrust_eccentricity_distance_from_centerline=In(0),  # TODO ???
+        thrust_eccentricity_distance_from_centerline=In(0, cots_error),
         thrust_eccentricity_angle_from_centerline=In(0, uniform(0, 360)),
     ),
     rocket=RocketCls(
@@ -70,7 +76,7 @@ fm = FlightManager(
         span=In(70 / 1000, design_and_manufacturing_error),
         position=In(622 / 1000),
         sweep_length=In(50 / 1000, design_and_manufacturing_error),
-        airfoil=None  # assume flat plate # TODO: Update
+        airfoil=("./data/airfoils/NACA0012-radians.txt", "radians")
     ),
     tail=TailCls(
         fwd_radius=In(57.1 / 2000),
@@ -78,29 +84,36 @@ fm = FlightManager(
         length=In(25 / 1000, design_and_manufacturing_error),
         position=In(740 / 1000),
     ),
-    # main_parachute=ParachuteCls(
-    #     radius=In(457 / 2000, cots_error),
-    #     cd=In(0.8, cots_error),
-    #     trigger_type="motor ejection",
-    #     motor_ejection_delay=In(7, cots_error),
-    #     lag=In(0)
-    # ),
     main_parachute=ParachuteCls(
         radius=In(457 / 2000, cots_error),
         cd=In(0.8, cots_error),
-        trigger_type="altitude",
-        trigger_altitude=In(150, normal(10)),
+        trigger_type='motor ejection',
+        motor_ejection_delay=In(7, delay_distribution()),
         lag=In(0)
     )
 )
 
 
+# for _ in range(100):
+#     fm.monte_flight(plot_trajectory="mrc-trajectory.png")
+#     fm.monte_flight(plot_trajectory_2d="mrc-trajectory.png")
+
+# fm.monte_analysis(n=100).plot_dispersion_analysis()
+# fm.draw_rocket("mpr-draw.pdf")
+# fm.ideal_flight(plot_trajectory_2d="mpr-2d-trajectory.pdf")
+
+# quit()
+
 # fm.draw_rocket("mpr-draw.png")
 # quit()
 
 # fm.monte_flight(to_vary=[], plot_trajectory=True)
-monte_dataset = fm.monte_analysis(n=1)
-monte_dataset.save("test.cache")
+monte_dataset = fm.monte_analysis(
+    n=5000
+)
+
+monte_dataset.save("mpr-cache/wind-estimation.cache")
+
 monte_dataset.plot_dispersion_analysis(
     label_radii=[],
     actual_landing_point=(52.6693235, -1.5222396666666667),

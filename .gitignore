@@ -2,5 +2,7 @@ __pycache__/
 *.env
 .vscode/
 data/rockets/mpr/mrc-9-11-2025.nc
-data/weather/mrc/mrc-9-11-2025 (old copy).nc
 *LAMBDA62/
+data/weather/mrc/mrc-9-11-2025 (old copy).nc
+data/weather/mrc/reanalysis-era5-single-levels-rocketpy-\[2025]-\[11]-\[9]-\[13-14].nc
+*.nc

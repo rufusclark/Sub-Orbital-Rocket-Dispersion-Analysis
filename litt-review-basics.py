@@ -1,11 +1,30 @@
-from monte_carlo_manager import FlightManager, FlightCls, EnvironmentCls, MotorCls, RocketCls, ParachuteCls, NoseCls, FinSetCls, RailButtonCls, In, normal, normal_fraction, uniform, MPH_TO_MS, SimOutput, TailCls, TransitionCls, NM_TO_M, Variance, Literal
+from monte_carlo_manager import FlightManager, FlightCls, EnvironmentCls, MotorCls, RocketCls, ParachuteCls, NoseCls, FinSetCls, RailButtonCls, In, normal, normal_fraction, uniform, MPH_TO_MS, SimOutput, TailCls, TransitionCls, NM_TO_M, Variance
+
+import matplotlib.pyplot as plt
+import scienceplots
+# nice scientific styling
+plt.style.use("science")
+# match report font size
+plt.rcParams.update({
+    "font.size": 10,
+    "axes.titlesize": 10,
+    "axes.labelsize": 10,
+    "legend.fontsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+})
+# match report font
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]
+})
 
 cots_error = normal_fraction(0.01)
 design_and_manufacturing_error = normal_fraction(0.025)
 
 fm = FlightManager(
     flight=FlightCls(
-        rail_length=In(4.6, normal(0.1)),
+        rail_length=In(5),
         inclination=In(90, normal(2)),
         heading=In(176, normal(10))
     ),
@@ -26,10 +45,11 @@ fm = FlightManager(
         prop_mass=In(4349 / 1000, cots_error),
         burn_time=In(4.2),
         scaled_burn_time=In(4.2, cots_error),
-        scaled_total_impulse=In(9429.4, cots_error),
-        position=In(1398 / 1000, design_and_manufacturing_error),
+        scaled_total_impulse=In(2500, cots_error),
+        # scaled_total_impulse=In(9429.4, cots_error),
+        position=In(1398 / 1000, cots_error),
         grain_number=6,
-        thrust_eccentricity_distance_from_centerline=In(0, normal(5e-4)),
+        thrust_eccentricity_distance_from_centerline=In(0),  # TODO ???
         thrust_eccentricity_angle_from_centerline=In(0, uniform(0, 360)),
     ),
     rocket=RocketCls(
@@ -68,7 +88,7 @@ fm = FlightManager(
     ),
     tail=TailCls(
         fwd_radius=In(102 / 2000),
-        aft_radius=In(83 / 2000, design_and_manufacturing_error),
+        aft_radius=In(83 / 2000),
         length=In(56.7 / 1000, design_and_manufacturing_error),
         position=In(2250 / 1000),
     ),
@@ -87,44 +107,24 @@ fm = FlightManager(
     )
 )
 
+fm.ideal_flight(plot_trajectory="l4c-trajectory-3d.png")
+print("Saved l4c-trajectory-3d.png")
+fm.ideal_flight(plot_trajectory="l4c-trajectory-3d.pdf")
+print("Saved l4c-trajectory-3d.pdf")
+
+fm.ideal_flight(plot_trajectory_2d="l4c-trajectory.png")
+print("Saved l4c-trajectory.png")
+fm.ideal_flight(plot_trajectory_2d="l4c-trajectory.pdf")
+print("Saved l4c-trajectory.pdf")
+
+fm.draw_rocket("l4c-draw.png")
+print("Saved l4c-draw.png")
 fm.draw_rocket("l4c-draw.pdf")
-fm.ideal_flight(plot_trajectory_2d="l4c-2d-trajectory.pdf")
-quit()
+print("Saved l4c-draw.pdf")
 
-# fm.draw_rocket("draw-l4c.png")
-# quit()
-
-# fm.draw_rocket()
-
-# fm.monte_flight(to_vary=[], plot_trajectory=True)
-
-#
 # fm.optimise_launch_angle(
 #     min_inclination=90 - 15,
 #     max_inclination=90 + 15,
 #     target_distance=0,
 #     show=True
 # )
-
-to_vary = Variance.FLIGHT_EVENT
-cache_path = f"monte_carlo_cache2/l4c-{to_vary.name.lower().replace("_", "-")}.cache"
-
-# cache_path = "monte_carlo_cache2/l4c-all.cache"
-
-print(f"Cache Path: {cache_path}")
-monte_dataset = fm.monte_analysis(
-    to_vary=[to_vary],
-    n=5000,
-    # verbose=True
-)
-# monte_dataset.save(cache_path)
-
-# monte_dataset.plot_dispersion_analysis(
-#     label_radii=[1000, 2000, 3000, 2*NM_TO_M],
-#     width=10000
-# )
-
-out = SimOutput.read(cache_path)
-out.plot_dispersion_analysis()
-
-# clear; python3.12 l4c.py

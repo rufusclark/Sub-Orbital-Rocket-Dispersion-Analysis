@@ -2,47 +2,88 @@ from monte_carlo_manager import SimOutput
 from enums import FlightOutcome
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import scienceplots
 import numpy as np
 
+# nice scientific styling
+plt.style.use("science")
+# match report font size
+plt.rcParams.update({
+    "font.size": 10,
+    "axes.titlesize": 10,
+    "axes.labelsize": 10,
+    "legend.fontsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+})
+# match report font
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]
+})
 
-monte_dataset = SimOutput.read("./monte_carlo_cache/mpr.cache")
-monte_dataset.plot_dispersion_analysis(
-    label_radii=[],
+filename = "./mpr-cache/reanalysis"
+monte_dataset = SimOutput.read(f"{filename}.cache")
+monte_dataset.plot_dispersion_analysis_no_impact(
+    width=450,
+    label_radii=[100, 200],
     actual_landing_point=(52.6693235, -1.5222396666666667),
-    title="",
-    filename="mpr.png"
+    filename=f"{filename}.pdf",
+    show=False
 )
 
-label_radii = [1000, 2000, 3000, 4000, 5000]
+filename = "./mpr-cache/wind-estimation"
+monte_dataset = SimOutput.read(f"{filename}.cache")
+monte_dataset.plot_dispersion_analysis_no_impact(
+    width=450,
+    label_radii=[100, 200],
+    actual_landing_point=(52.6693235, -1.5222396666666667),
+    filename=f"{filename}.pdf",
+    show=False
+)
+
+quit()
 
 # Custom captions
 captions = [
-    "a) Environment Variation",
-    "b) Launch Variation",
-    "c) Performance Variation",
-    "d) Flight Event Variation",
-    "e) Design and Manufacturing Variation"
+    "(a) Environment Variation",
+    "(b) Launch Variation",
+    "(c) Performance Variation",
+    "(d) Flight Event Variation",
+    "(e) Design and Manufacturing Variation",
+    "(f) Combined Variations"
 ]
 
-# print full analysis
-full_output = SimOutput.read("./monte_carlo_cache/l4c.cache")
-full_output.plot_dispersion_analysis(
-    label_radii=label_radii,  # type: ignore
-    title="",
-    filename="l4c-all.png"
-)
+# # print full analysis
+# full_output = SimOutput.read("./monte_carlo_cache/l4c.cache")
+# full_output.plot_dispersion_analysis(
+#     label_radii=label_radii,  # type: ignore
+#     title="",
+#     filename="l4c-all.png",
+#     show=False
+# )
+# print("Saved l4c-all.png")
 
-print("Saved l4c-all.png")
+label_radii = [100]  # mpr
+cache_folder = "./ukroc_monte_carlo_cache/"
+out_file = "ukroc-monte"
+view_factor = 1.2
+
+# label_radii = [1000, 2000, 3000, 4000, 5000]  # l4c
+# cache_folder = "./monte_carlo_cache2/l4c-"
+# out_file = "l4c"
+# view_factor = 1.1
 
 outputs = [
-    SimOutput.read("./monte_carlo_cache/l4c-environment.cache"),
-    SimOutput.read("./monte_carlo_cache/l4c-launch.cache"),
-    SimOutput.read("./monte_carlo_cache/l4c-performance.cache"),
-    SimOutput.read("./monte_carlo_cache/l4c-flight-event.cache"),
-    SimOutput.read("./monte_carlo_cache/l4c-design-and-manufacturing.cache"),
+    SimOutput.read(f"{cache_folder}environment.cache"),
+    SimOutput.read(f"{cache_folder}launch.cache"),
+    SimOutput.read(f"{cache_folder}performance.cache"),
+    SimOutput.read(f"{cache_folder}flight-event.cache"),
+    SimOutput.read(f"{cache_folder}design-and-manufacturing.cache"),
+    SimOutput.read(f"{cache_folder}all.cache")
 ]
+ideal_output = SimOutput.read(f"{cache_folder}ideal.cache")
 
-ideal_output = SimOutput.read("./monte_carlo_cache/l4c-ideal.cache")
 x_ideal, y_ideal = ideal_output.mean_point()
 
 print(
@@ -57,6 +98,24 @@ for out, caption in zip(outputs, captions):
 
 print("Summary Table Created")
 
+with open(f"{out_file}.csv", "w") as f:
+    f.write(
+        f"{'Variations'},{'Distance [m]'},{r'$1\sigma$ area [m^2]'},{r'$2\sigma$ area [m^2]'},{r'$3\sigma$ area [m^2]'},{r'$1\sigma$ diameter [m]'},{r'$2\sigma$ diameter [m]'},{r'$3\sigma$ diameter [m]'},\n"
+    )
+    for out, caption in zip(outputs, captions):
+        mean, angle, width, height, area = out.compute_ellipses()
+        x, y = mean
+        dx = x - x_ideal
+        dy = y - y_ideal
+        d = np.sqrt(dx**2 + dy**2)
+        diameter_eq = 0.5 * (width + height)
+        f.write(
+            f"{caption.split(") ")[1].split(" Variation")[0]},{d},{','.join([f'{a}' for a in area])},{
+                ','.join([f'{dia}' for dia in diameter_eq])}\n"
+        )
+
+print(f"Summary Table Created (csv) ({out_file}.csv)")
+
 #
 # Compute Sensitivity
 #
@@ -69,7 +128,7 @@ print("Summary Table Created")
 fig, axes = plt.subplots(
     nrows=3,
     ncols=2,
-    figsize=(9, 12),
+    figsize=(6.5, 9.4),
     subplot_kw={"projection": ideal_output.map_crs},
     constrained_layout=True
 )
@@ -90,27 +149,28 @@ marker_map = {
     FlightOutcome.LAWN_DART: "D",
     FlightOutcome.MOTOR_CATO: "s",
     FlightOutcome.SEPARATION: ">",
-    FlightOutcome.SHRED: "<"
+    FlightOutcome.SHRED: "<",
+    FlightOutcome.NO_CHUTE: "p"
 }
 
 failure_name_map = {
     FlightOutcome.NOMINAL: "Nominal",
-    FlightOutcome.CORE_SAMPLE: "Ballistic",
-    FlightOutcome.LAWN_DART: "Ballistic\n(without nose)",
+    FlightOutcome.CORE_SAMPLE: "Core Sample",
+    FlightOutcome.LAWN_DART: "Lawn Dart",
     FlightOutcome.MOTOR_CATO: "Motor CATO",
-    FlightOutcome.SEPARATION: "Freefall\nfrom deployment",
-    FlightOutcome.SHRED: "Disintegrate"
+    FlightOutcome.SEPARATION: "Separation",
+    FlightOutcome.SHRED: "Shred",
+    FlightOutcome.NO_CHUTE: "No Parachute"
 }
 
-# For mystery 5th axis
-captions.insert(4, "please fit nicely :)")
-outputs.insert(4, ideal_output)
+
+radius = max([view_factor * max(np.abs(out.x_pos).max(), np.abs(out.y_pos).max())
+              for out in outputs])
 
 for i, out in enumerate(outputs):
     ax = axes[i]
 
     # Map bounds
-    radius = 1.2 * max(np.abs(out.x_pos).max(), np.abs(out.y_pos).max())
     ax.set_extent([-radius, radius, -radius, radius], crs=out.data_local_crs)
 
     out.add_satellite_maps(ax, radius)
@@ -153,7 +213,7 @@ for i, out in enumerate(outputs):
             out.add_ellipses(ax, [1, 2, 3])
 
         # add north arrow
-        out.add_north_arrow(ax, -radius*0.94, -radius*0.94, radius*0.12)
+        out.add_north_arrow(ax, -radius*0.94, -radius*0.94, radius*0.15)
 
         # add heading angle
         if out.fm.flight.inclination.ideal != 90:
@@ -164,23 +224,23 @@ for i, out in enumerate(outputs):
         out.add_wind_arrow(
             ax,
             out.fm.env.wind_heading.ideal + 180,  # type: ignore
-            radius
+            radius,
+            corner_offset=0.92,
+            y_shift=0.02
         )
 
         # add distance rings
         out.add_range_rings(ax, 0, 0, label_radii)
 
     # Subplot caption
-    ax.set_title(captions[i], fontsize=12, loc="center")
-
-# Remove 5th empty subplot
-axes[-2].set_visible(False)
-# fig.delaxes(axes[-2])
+    # ax.set_title(captions[i], fontsize=12, loc="center")
+    ax.text(0.5, -0.08, captions[i],
+            transform=ax.transAxes, ha="center", fontsize=12)
 
 # Shared colorbar
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
-cbar = fig.colorbar(sm, ax=axes[:-1], orientation="vertical", fraction=0.03)
+cbar = fig.colorbar(sm, ax=axes, orientation="vertical", fraction=0.03)
 cbar.set_label("Impact Energy (J)")
 
 # Shared legend
@@ -196,17 +256,11 @@ for handle, label in zip(all_handles, all_labels):
         unique[label] = handle
 
 
-fig.legend(unique.values(), unique.keys(), loc="upper right")
+fig.legend(unique.values(), unique.keys(), loc="outside lower center", ncol=4)
 
-plt.savefig("l4c.png")
-print("Saved l4c.png")
+plt.savefig(f"{out_file}.png")
+print(f"Saved {out_file}.png")
+plt.savefig(f"{out_file}.pdf")
+print(f"Saved {out_file}.pdf")
 
-plt.show()
-
-
-# TODO: Plot all
-# TODO: Share cmap?
-# TODO: Share legend?
-# TODO: Correct captioning
-# TODO: log scale cmap
-# TODO: Sensitivity
+# plt.show()

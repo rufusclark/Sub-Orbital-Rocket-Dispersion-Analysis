@@ -21,9 +21,25 @@ import matplotlib.ticker as mticker
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 
-# plt.rcParams['figure.facecolor'] = '#e1e1e1'
-plt.rcParams['figure.facecolor'] = '#ffffff'
+import matplotlib.pyplot as plt
+import scienceplots
 
+# nice scientific styling
+plt.style.use("science")
+# match report font size
+plt.rcParams.update({
+    "font.size": 10,
+    "axes.titlesize": 10,
+    "axes.labelsize": 10,
+    "legend.fontsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+})
+# match report font
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica"]
+})
 
 #
 # Constants
@@ -59,7 +75,7 @@ class _FailureProbability:
                 "MM", "1/4A", "1/2A", "A", "B", "C", "D", "E", "F", "G", "H"
             ],
             failure_mode: Literal[
-                "lawn dart", "core sample", "separation", "shred", "motor CATO"
+                "lawn dart", "core sample", "separation", "shred", "motor CATO", "no  chute"
             ],
             enforce_minimum_probability: float = 0
     ) -> float:
@@ -86,6 +102,13 @@ def normal_fraction(var_frac: float):
 
 def uniform(low: float, high: float):
     return lambda x: np.random.uniform(low, high)
+
+
+def delay_distribution():
+    def foo(delay):
+        rand = min(np.random.normal(0, 0.06), 0.2)
+        return delay + min(rand * delay, 1)
+    return foo
 
 
 class In:
@@ -373,10 +396,14 @@ class FlightManager:
     def ideal_flight(
         self, *,
         draw: bool = False,
-        plot_trajectory: bool = False,
         draw_filename: Optional[str] = None,
+        plot_trajectory: Optional[str] = None,
+        plot_trajectory_2d: Optional[str] = None
     ):
-        return self.monte_flight([], draw=draw, plot_trajectory=plot_trajectory, draw_filename=draw_filename)
+        return self.monte_flight(
+            [], draw=draw, plot_trajectory=plot_trajectory, draw_filename=draw_filename,
+            plot_trajectory_2d=plot_trajectory_2d
+        )
 
     def draw_rocket(self, filename: Optional[str] = None):
         return self.ideal_flight(draw=True, draw_filename=filename)
@@ -392,9 +419,10 @@ class FlightManager:
             ],
             *,
             draw: bool = False,
-            plot_trajectory: bool = False,
             verbose: bool = False,
-            draw_filename: Optional[str] = None
+            draw_filename: Optional[str] = None,
+            plot_trajectory: Optional[str] = None,
+            plot_trajectory_2d: Optional[str] = None
     ) -> tuple[float, float, float, float, FlightOutcome]:
         vPerformance = Variance.PERFORMANCE in to_vary
         vEnvironment = Variance.ENVIRONMENT in to_vary
@@ -412,9 +440,9 @@ class FlightManager:
                 FailureProbability.lookup_failure_probability(
                     motor=motor_class,  # type: ignore
                     failure_mode=mode,  # type: ignore
-                    enforce_minimum_probability=0.01
+                    enforce_minimum_probability=0.005
                 ) for mode in [
-                    "lawn dart", "core sample", "separation", "shred", "motor CATO"
+                    "lawn dart", "core sample", "separation", "shred", "motor CATO", "no chute"
                 ]
             ]
             probabilities.append(1 - sum(probabilities))
@@ -426,6 +454,7 @@ class FlightManager:
                     FlightOutcome.SEPARATION,
                     FlightOutcome.SHRED,
                     FlightOutcome.MOTOR_CATO,
+                    FlightOutcome.NO_CHUTE,
                     FlightOutcome.NOMINAL
                 ],
                 weights=probabilities
@@ -625,7 +654,7 @@ class FlightManager:
             )
 
         # simulate core sample (nose only ejection)
-        if failure_mode == FlightOutcome.CORE_SAMPLE:
+        if failure_mode in [FlightOutcome.CORE_SAMPLE, FlightOutcome.NO_CHUTE]:
             if self.drogue_parachute is None:
                 parachute = self.main_parachute
             else:
@@ -650,8 +679,14 @@ class FlightManager:
                 trigger = "apogee"  # type: ignore
 
             rocket_radius = self.rocket.radius.ideal
-            cross_sectional_area = rocket_radius**2 * np.pi
-            cd_s = 1.5 * cross_sectional_area
+            rocket_length = self.fin_set.position.ideal + self.fin_set.span.ideal
+
+            if failure_mode == FlightOutcome.CORE_SAMPLE:
+                cross_sectional_area = rocket_radius**2 * np.pi
+                cd_s = 1.5 * cross_sectional_area
+            elif failure_mode == FlightOutcome.NO_CHUTE:
+                cross_sectional_area = rocket_radius*2 * rocket_length
+                cd_s = 1.0 * cross_sectional_area
 
             core_sample_sim = rocket.add_parachute(
                 name="core sample parachute",
@@ -750,7 +785,38 @@ class FlightManager:
         )
 
         if plot_trajectory:
-            tf.plots.trajectory_3d()
+            print(f"Apogee: {tf.apogee} m")
+            tf.plots.trajectory_3d(filename=plot_trajectory)
+
+        if plot_trajectory_2d:
+            t = tf.time
+            y = -tf.y(t)  # type: ignore
+            z = tf.z(t)  # type: ignore
+
+            t_out_of_rail = tf.out_of_rail_time
+            t_burn_out = self.motor.burn_time.ideal
+            t_parachutes = tf.parachute_events
+
+            fig, ax = plt.subplots(constrained_layout=True)
+            ax.plot(y, z)
+            ax.set_xlabel("Horizontal Distance")
+            ax.set_ylabel("Altitude")
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.plot(y[0], z[0], marker="x", label="Launch Point")
+            ax.plot(-tf.y(t_out_of_rail), tf.z(t_out_of_rail),  # type: ignore
+                    marker="x", label="Out of Rail")
+            ax.plot(-tf.y(t_burn_out), tf.z(t_burn_out),  # type: ignore
+                    marker="x", label="Motor Burnout")
+            labels = ["Drogue Parachute", "Main Parachute"] if len(
+                t_parachutes) == 2 else ["Parachute"]
+            for t_parachute, label in zip(t_parachutes, labels):
+                t_p = t_parachute[0]
+                ax.plot(-tf.y(t_p), tf.z(t_p),  # type: ignore
+                        marker="x", label=label)
+            ax.plot(y[-1], z[-1], marker="x", label="Landing Point")
+            fig.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+            plt.savefig(plot_trajectory_2d)
 
         t_impact = tf.t_final
         x_impact = tf.x_impact  # positive east
@@ -1019,6 +1085,7 @@ class SimOutput:
         radius: float = 200,
         label: str = "Wind",
         corner_offset: float = 0.94,
+        y_shift: float = 0
     ):
         """
         Add a meteorological wind arrow centered on its midpoint above the label.
@@ -1027,10 +1094,10 @@ class SimOutput:
 
         # Center for label
         x_label = radius * (corner_offset - 0.05)
-        y_label = -radius * corner_offset
+        y_label = -radius * (corner_offset + y_shift)
 
         # Define arrow
-        y_offset = 0.02 * radius
+        y_offset = 0.08 * radius
         arrow_length = 0.09 * radius
 
         # Midpoint of arrow above label
@@ -1251,7 +1318,7 @@ class SimOutput:
                 width=width,
                 height=height,
                 angle=angle,
-                label=f"{n_sigma}σ ({self.probability_enclosed(n_sigma)*100:.1f}%)",
+                label=rf"${n_sigma}\sigma$ ({self.probability_enclosed(n_sigma)*100:.1f}\%)",
                 transform=self.data_local_crs,
                 alpha=0.5,
                 zorder=9,
@@ -1277,8 +1344,131 @@ class SimOutput:
 
         # add mapbox tiles (satellite background)
         zoom = force_zoom if force_zoom else min(
-            int(14 + np.log2(2000 / radius)), 22)
+            int(15 + np.log2(2000 / radius)), 22)
         ax.add_image(tiles, zoom)  # type: ignore
+
+    def plot_dispersion_analysis_no_impact(
+        self,
+        label_radii: list[float] = [],
+        width: Optional[float] = None,
+        actual_landing_point: Optional[tuple[float, float]] = None,
+        filename: Optional[str] = None,
+        show: bool = True,
+        figsize: tuple[float, float] = (6, 4.5)
+    ):
+
+        marker_map = {
+            FlightOutcome.NOMINAL: "x",
+            FlightOutcome.CORE_SAMPLE: "o",
+            FlightOutcome.LAWN_DART: "D",
+            FlightOutcome.MOTOR_CATO: "s",
+            FlightOutcome.SEPARATION: ">",
+            FlightOutcome.SHRED: "<",
+            FlightOutcome.NO_CHUTE: "p"
+        }
+
+        failure_name_map = {
+            FlightOutcome.NOMINAL: "Nominal",
+            FlightOutcome.CORE_SAMPLE: "Core Sample",
+            FlightOutcome.LAWN_DART: "Lawn Dart",
+            FlightOutcome.MOTOR_CATO: "Motor CATO",
+            FlightOutcome.SEPARATION: "Separation",
+            FlightOutcome.SHRED: "Shred",
+            FlightOutcome.NO_CHUTE: "No Parachute"
+        }
+
+        fig, ax = plt.subplots(
+            figsize=figsize,
+            subplot_kw={"projection": self.map_crs},
+            constrained_layout=True
+        )
+
+        radius = width / 2 if width else 1.1 * \
+            max(np.abs(self.x_pos).max(), np.abs(self.y_pos).max())
+
+        ax.set_extent([-radius, radius, -radius, radius],  # type: ignore
+                      crs=self.data_local_crs)
+
+        self.add_satellite_maps(ax, radius)
+
+        # plot launch point
+        ax.scatter(
+            0,
+            0,
+            s=200,
+            marker="*",
+            edgecolors="black",
+            linewidths=1.5,
+            transform=self.data_local_crs,
+            label="Launch Point",
+            zorder=10
+        )
+
+        # plot actual landing point
+        if actual_landing_point:
+            ax.scatter(
+                actual_landing_point[1],
+                actual_landing_point[0],
+                s=200,
+                marker="*",
+                edgecolors="black",
+                linewidths=1.5,
+                transform=self.data_latlon_crs,
+                label="Landing Point",
+                zorder=10
+            )
+
+        for mode in list(marker_map.keys()):
+            mask = mode == self.failure_mode
+            if not len(self.x_pos[mask]):
+                continue
+
+            ax.scatter(
+                self.x_pos[mask],
+                self.y_pos[mask],
+                marker=marker_map.get(mode),
+                s=30,
+                transform=self.data_local_crs,
+                alpha=0.6,
+                label=failure_name_map[mode],
+                zorder=5 if mode == FlightOutcome.NOMINAL else 6
+            )
+
+        # add ellipses
+        if self.n > 1:
+            self.add_ellipses(ax, [1, 2, 3])
+
+        # add north arrow
+        self.add_north_arrow(ax, -radius*0.94, -radius*0.94, radius*0.15)
+
+        # add heading angle
+        if self.fm.flight.inclination.ideal != 90:
+            self.add_heading_arrow(
+                ax, self.fm.flight.heading.ideal, radius*0.2)
+
+        # add wind arrow
+        self.add_wind_arrow(
+            ax,
+            self.fm.env.wind_heading.ideal + 180,  # type: ignore
+            radius,
+            corner_offset=0.92,
+            y_shift=0.03
+        )
+
+        # add distance rings
+        self.add_range_rings(ax, 0, 0, label_radii)
+
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, labels, loc="center left",
+                  bbox_to_anchor=(1.02, 0.5))
+        # fig.legend(handles, labels)
+
+        if filename:
+            plt.savefig(filename)
+            print(f"Saved {filename}")
+
+        if show:
+            plt.show()
 
     def plot_dispersion_analysis(
         self,
@@ -1500,3 +1690,12 @@ class SimOutput:
 # TODO: Automatically save all plots and the sensitivity table
 # TODO: Add definitions to EVERYTHING
 # TODO: Re-implement separation so that different bodies fall
+
+
+if __name__ == "__main__":
+
+    a = In(5, delay_distribution())
+
+    for _ in range(10):
+        print(a.ideal)
+        print(a.random)

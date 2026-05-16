@@ -6,5 +6,6 @@ numpy==2.4.4
 pandas==3.0.2
 python-dotenv==1.2.2
 rocketpy==1.11.0
+scienceplots==2.2.1
 scipy==1.17.1
 xarray==2026.2.0

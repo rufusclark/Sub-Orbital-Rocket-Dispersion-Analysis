@@ -16,3 +16,4 @@ class FlightOutcome(IntEnum):
     SEPARATION = 14
     SHRED = 15
     MOTOR_CATO = 16
+    NO_CHUTE = 17
